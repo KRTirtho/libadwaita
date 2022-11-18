@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dbus/dbus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -110,40 +108,43 @@ class _AdwHeaderBarState extends State<AdwHeaderBar> {
       widget.minimizeBtn != null ||
       widget.maximizeBtn != null;
 
-  late ValueNotifier<List<String>?> separator =
-      !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)
-          ? ValueNotifier(
-              ['', 'minimize,maximize,close'],
-            )
-          : ValueNotifier(null);
+  ValueNotifier<List<String>?> separator = ValueNotifier(null);
 
   @override
   void initState() {
     super.initState();
 
-    if (widget.style.autoPositionWindowButtons) {
-      void updateSep(String order) {
-        if (!mounted) return;
-        separator.value = order.split(':')
-          ..map<String>(
-            (e) => e
-                .split(',')
-                .where(
-                  (element) =>
-                      element == 'close' ||
-                      element == 'maximize' ||
-                      element == 'minimize',
-                )
-                .join(','),
-          );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final platform = Theme.of(context).platform;
+      if (!kIsWeb &&
+          ([TargetPlatform.linux, TargetPlatform.windows, TargetPlatform.macOS]
+              .contains(platform))) {
+        separator = ValueNotifier(
+          ['', 'minimize,maximize,close'],
+        );
       }
+      if (widget.style.autoPositionWindowButtons) {
+        void updateSep(String order) {
+          if (!mounted) return;
+          separator.value = order.split(':')
+            ..map<String>(
+              (e) => e
+                  .split(',')
+                  .where(
+                    (element) =>
+                        element == 'close' ||
+                        element == 'maximize' ||
+                        element == 'minimize',
+                  )
+                  .join(','),
+            );
+        }
 
-      if (Platform.isMacOS) {
-        updateSep('close,maximize,minimize:');
-      } else if (Platform.isLinux) {
-        final schema = GSettings('org.gnome.desktop.wm.preferences');
+        if (platform == TargetPlatform.macOS) {
+          updateSep('close,maximize,minimize:');
+        } else if (platform == TargetPlatform.linux) {
+          final schema = GSettings('org.gnome.desktop.wm.preferences');
 
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
           try {
             final buttonLayout =
                 await schema.get('button-layout') as DBusString?;
@@ -153,9 +154,9 @@ class _AdwHeaderBarState extends State<AdwHeaderBar> {
           } catch (e) {
             debugPrint('$e');
           }
-        });
+        }
       }
-    }
+    });
   }
 
   @override
